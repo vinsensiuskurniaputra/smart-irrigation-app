@@ -1,0 +1,64 @@
+name: smart_irrigation_app
+description: "A new Flutter project."
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: ^3.8.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+  get:
+  get_it:
+  shared_preferences:
+  dio: ^5.4.0
+  logger: ^2.5.0
+  dartz:
+  fl_chart: ^0.65.0
+  intl: ^0.19.0
+  web_socket_channel: ^2.4.0
+  shimmer: ^3.0.0
+  path: ^1.8.3
+  syncfusion_flutter_pdfviewer: ^30.2.4
+  share_plus: ^7.2.1
+  permission_handler: ^11.3.0
+  connectivity_plus: ^5.0.2
+  camera: ^0.10.5+9
+  image_picker: ^1.0.7
+  google_mlkit_image_labeling: ^0.10.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.3.10
+
+flutter:
+  uses-material-design: true
+  assets:
+      - assets/fonts/
+      - assets/images/
+      - assets/images/onboardings/
+
+flutter_launcher_icons:
+    android: true
+    ios: true
+    image_path: assets/images/logo_with_bg.png
+
+flutter_native_splash:
+    color: '#FFFFFF'
+    image: assets/images/logo_splash_screen.png
+    android_gravity: center
+    ios_content_mode: scaleAspectFit
+
+    android: true
+    ios: true
+
+    android_12:
+        image: assets/images/logo_splash_screen.png
+        icon_background_color: '#FFFFFF'
+
+    fullscreen: false
+    web: false
