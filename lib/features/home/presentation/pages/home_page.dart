@@ -36,46 +36,53 @@ class HomePage extends StatelessWidget {
     
     return Scaffold(
       backgroundColor: isDarkTheme ? AppColors.darkBackground : AppColors.background,
-      body: CustomScrollView(
-        slivers: [
-          // Header Widget
-          SliverToBoxAdapter(
-            child: HomeHeaderWidget(
-              userName: controller.name.value,
-              greeting: _getGreetingBasedOnTime(),
-              mainQuestion: 'Ready to Irrigate?',
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await controller.fetchDevices();
+          await controller.fetchName();
+        },
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            // Header Widget (reactive for name changes)
+            SliverToBoxAdapter(
+              child: Obx(() => HomeHeaderWidget(
+                    userName: controller.name.value,
+                    greeting: _getGreetingBasedOnTime(),
+                    mainQuestion: 'Ready to Irrigate?',
+                  )),
             ),
-          ),
-          
-          // Reactive section
-          SliverToBoxAdapter(
-            child: Obx(() {
-              final list = controller.devices
-                  .map((e) => DeviceModel(
-                        id: e.id,
-                        deviceName: e.deviceName,
-                        deviceCode: e.deviceCode,
-                        status: e.status,
-                      ))
-                  .toList();
-              return Column(
-                children: [
-                  DeviceStatsRow(devices: list),
-                  DevicesListWidget(
-                    devices: list,
-                    onDeviceTap: (d) => _onDeviceTap(d),
-                    headerTitle: 'Connected Devices',
-                  ),
-                ],
-              );
-            }),
-          ),
-          
-          // Bottom padding
-          const SliverToBoxAdapter(
-            child: SizedBox(height: 24),
-          ),
-        ],
+
+            // Reactive section
+            SliverToBoxAdapter(
+              child: Obx(() {
+                final list = controller.devices
+                    .map((e) => DeviceModel(
+                          id: e.id,
+                          deviceName: e.deviceName,
+                          deviceCode: e.deviceCode,
+                          status: e.status,
+                        ))
+                    .toList();
+                return Column(
+                  children: [
+                    DeviceStatsRow(devices: list),
+                    DevicesListWidget(
+                      devices: list,
+                      onDeviceTap: (d) => _onDeviceTap(d),
+                      headerTitle: 'Connected Devices',
+                    ),
+                  ],
+                );
+              }),
+            ),
+
+            // Bottom padding
+            const SliverToBoxAdapter(
+              child: SizedBox(height: 24),
+            ),
+          ],
+        ),
       ),
     );
   }
