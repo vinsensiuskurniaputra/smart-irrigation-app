@@ -6,6 +6,7 @@ class ApiUrls {
   static const login = '$baseUrl/login';
   static const register = '$baseUrl/register';
   static const device = '$baseUrl/devices';
+  
   static const brandList = '$baseUrl/brands';
   static const deviceList = '$baseUrl/brands';
   static const deviceParams = '$baseUrl/devices';

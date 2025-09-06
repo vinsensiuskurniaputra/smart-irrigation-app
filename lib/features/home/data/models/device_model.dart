@@ -1,3 +1,5 @@
+import 'package:smart_irrigation_app/features/home/domain/entities/device_entity.dart';
+
 class DeviceModel {
   final int id;
   final String deviceName;
@@ -33,6 +35,13 @@ class DeviceModel {
 
   // Helper method to check if device is online
   bool get isOnline => status.toLowerCase() == 'online';
+
+  DeviceEntity toEntity() => DeviceEntity(
+        id: id,
+        deviceName: deviceName,
+        deviceCode: deviceCode,
+        status: status,
+      );
 
   // Copy with method for immutable updates
   DeviceModel copyWith({
