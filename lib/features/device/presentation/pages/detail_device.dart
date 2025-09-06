@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:smart_irrigation_app/core/config/theme/app_colors.dart';
 import 'package:smart_irrigation_app/features/device/presentation/pages/plant_scanner_page.dart';
 import 'package:smart_irrigation_app/features/device/presentation/widget/actuator_control_card.dart';
@@ -6,74 +7,42 @@ import 'package:smart_irrigation_app/features/device/presentation/widget/plant_i
 import 'package:smart_irrigation_app/features/device/presentation/widget/sensor_card.dart';
 import 'package:smart_irrigation_app/features/device/presentation/widget/sensor_data_chart.dart';
 import 'package:smart_irrigation_app/features/device/presentation/controller/device_controller.dart';
+import 'package:smart_irrigation_app/features/device/domain/entities/detail_device_entity.dart';
 
-class DetailDevicePage extends StatefulWidget {
+class DetailDevicePage extends StatelessWidget {
   final int deviceId;
+  const DetailDevicePage({super.key, required this.deviceId});
 
-  const DetailDevicePage({
-    super.key,
-    required this.deviceId,
-  });
+  void _init(DeviceController c) {
+    if (c.status.value == DevicePageStatus.initial) {
+      c.load(deviceId);
+    }
+  }
 
-  @override
-  State<DetailDevicePage> createState() => _DetailDevicePageState();
-}
+  void _toggleActuator(DeviceController c, int actuatorId, bool newValue) => c.toggleActuator(actuatorId, newValue);
+  void _changeActuatorMode(DeviceController c, int actuatorId, ActuatorMode newMode) => c.changeMode(actuatorId, newMode.name);
 
-class _DetailDevicePageState extends State<DetailDevicePage> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-  int _selectedTabIndex = 0;
-  late DeviceController controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-    _tabController.addListener(() {
-      setState(() {
-        _selectedTabIndex = _tabController.index;
-      });
+  Widget _buildBody(DeviceController ctrl, TabController tabs) {
+    return Obx(() {
+      final s = ctrl.status.value;
+      if (s == DevicePageStatus.loading || s == DevicePageStatus.initial) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      if (s == DevicePageStatus.error) {
+        return Center(child: Text(ctrl.error.value ?? 'Error'));
+      }
+      return TabBarView(
+        controller: tabs,
+        children: [
+          _buildOverviewTab(ctrl),
+          _buildChartsTab(ctrl),
+          _buildControlsTab(ctrl),
+        ],
+      );
     });
-  controller = DeviceController();
-  controller.addListener(_onControllerChanged);
-  controller.load(widget.deviceId);
   }
 
-  @override
-  void dispose() {
-    controller.removeListener(_onControllerChanged);
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  void _onControllerChanged() {
-    if (mounted) setState(() {}); // Rebuild to reflect loading/success/error state changes
-  }
-
-  void _toggleActuator(int actuatorId, bool newValue) => controller.toggleActuator(actuatorId, newValue);
-  void _changeActuatorMode(int actuatorId, ActuatorMode newMode) {
-    // TODO: mode change API
-    controller.actuatorMode[actuatorId] = newMode.name;
-    setState(() {});
-  }
-
-  Widget _buildBody(DeviceController ctrl) {
-    if (ctrl.status == DevicePageStatus.loading || ctrl.status == DevicePageStatus.initial) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (ctrl.status == DevicePageStatus.error) {
-      return Center(child: Text(ctrl.error ?? 'Error'));
-    }
-    return TabBarView(
-      controller: _tabController,
-      children: [
-        _buildOverviewTab(ctrl),
-        _buildChartsTab(ctrl),
-        _buildControlsTab(ctrl),
-      ],
-    );
-  }
-
-  void _onPredictPlant() async {
+  void _onPredictPlant(DeviceController controller, BuildContext context) async {
     // Navigate to plant scanner page
     final result = await Navigator.push(
       context,
@@ -84,65 +53,71 @@ class _DetailDevicePageState extends State<DetailDevicePage> with SingleTickerPr
     
     // Handle the result from plant scanner
     if (result != null && result is Map<String, dynamic>) {
-      setState(() {
-        // Update plant name if returned from scanner
-  // TODO: integrate detecting plant update with controller
-        
-        // Update plant image if returned from scanner
-        if (result['imageFile'] != null) {
-          // In a real app, you would save this image and update URL
-          // For now, we'll just show a success message
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Identified plant: ${result['plantName']}'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      });
+      // TODO: map result into controller.detectPlant or update selectedPlant
+      if (result['plantName'] != null && controller.selectedPlant.value != null) {
+        final old = controller.selectedPlant.value!;
+        controller.selectedPlant(PlantEntity(
+          id: old.id,
+          deviceId: old.deviceId,
+          irrigationRuleId: old.irrigationRuleId,
+          plantName: result['plantName'],
+          imageUrl: old.imageUrl,
+          rule: old.rule,
+        ));
+      }
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Identified plant: ${result['plantName']}'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-  final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
-  final title = controller.device?.deviceName ?? 'Device';
-  return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          title,
-          style: const TextStyle(fontSize: 18),
+    final controller = Get.put(DeviceController(), tag: deviceId.toString());
+    _init(controller);
+    final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
+    return Obx(() {
+      final title = controller.device.value?.deviceName ?? 'Device';
+      final currentIndex = controller.currentTab.value;
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(title, style: const TextStyle(fontSize: 18)),
+          centerTitle: true,
+          elevation: 0,
+          bottom: TabBar(
+            controller: controller.tabController,
+            indicatorColor: isDarkTheme ? AppColors.silver : AppColors.primary,
+            labelColor: isDarkTheme ? AppColors.darkText : AppColors.white,
+            unselectedLabelColor: isDarkTheme ? AppColors.darkTextSecondary : AppColors.gray,
+            tabs: const [
+              Tab(text: 'Overview'),
+              Tab(text: 'Charts'),
+              Tab(text: 'Controls'),
+            ],
+          ),
         ),
-        centerTitle: true,
-        elevation: 0,
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: isDarkTheme ? AppColors.silver : AppColors.primary,
-          labelColor: isDarkTheme ? AppColors.darkText : AppColors.white,
-          unselectedLabelColor: isDarkTheme ? AppColors.darkTextSecondary : AppColors.gray,
-          tabs: const [
-            Tab(text: 'Overview'),
-            Tab(text: 'Charts'),
-            Tab(text: 'Controls'),
-          ],
-        ),
-      ),
-      body: _buildBody(controller),
-      floatingActionButton: _selectedTabIndex == 2 ? FloatingActionButton(
-        onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Settings saved')),
-          );
-        },
-        backgroundColor: isDarkTheme ? AppColors.darkSurface : AppColors.primary,
-        child: Icon(
-          Icons.save_outlined,
-          color: isDarkTheme ? AppColors.darkText : AppColors.white,
-        ),
-      ) : null,
-  );
-
-  // _buildBody is placed above build to avoid forward reference issues
+        body: _buildBody(controller, controller.tabController),
+        floatingActionButton: currentIndex == 2
+            ? FloatingActionButton(
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Settings saved')),
+                  );
+                },
+                backgroundColor: isDarkTheme ? AppColors.darkSurface : AppColors.primary,
+                child: Icon(
+                  Icons.save_outlined,
+                  color: isDarkTheme ? AppColors.darkText : AppColors.white,
+                ),
+              )
+            : null,
+      );
+    });
   }
 
   Widget _buildOverviewTab(DeviceController ctrl) {
@@ -173,18 +148,18 @@ class _DetailDevicePageState extends State<DetailDevicePage> with SingleTickerPr
             const SizedBox(height: 24),
             
             // Plant info
-            if (ctrl.selectedPlant != null)
+            if (ctrl.selectedPlant.value != null)
               PlantInfoCard(
-                plantName: ctrl.selectedPlant!.plantName,
-                imageUrl: ctrl.selectedPlant!.imageUrl,
+                plantName: ctrl.selectedPlant.value!.plantName,
+                imageUrl: ctrl.selectedPlant.value!.imageUrl,
                 irrigationRules: {
-                  'plant_name': ctrl.selectedPlant!.rule.plantName,
-                  'min_moisture': ctrl.selectedPlant!.rule.minMoisture,
-                  'max_moisture': ctrl.selectedPlant!.rule.maxMoisture,
-                  'preferred_temp': ctrl.selectedPlant!.rule.preferredTemp,
-                  'preferred_humidity': ctrl.selectedPlant!.rule.preferredHumidity,
+                  'plant_name': ctrl.selectedPlant.value!.rule.plantName,
+                  'min_moisture': ctrl.selectedPlant.value!.rule.minMoisture,
+                  'max_moisture': ctrl.selectedPlant.value!.rule.maxMoisture,
+                  'preferred_temp': ctrl.selectedPlant.value!.rule.preferredTemp,
+                  'preferred_humidity': ctrl.selectedPlant.value!.rule.preferredHumidity,
                 },
-                onPredictPlant: _onPredictPlant,
+                onPredictPlant: () => _onPredictPlant(ctrl, Get.context!),
               ),
           ],
         ),
@@ -239,8 +214,9 @@ class _DetailDevicePageState extends State<DetailDevicePage> with SingleTickerPr
   }
 
   Widget _buildControlsTab(DeviceController ctrl) {
-    final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
-    final actuators = ctrl.device?.actuators ?? [];
+    final ctx = Get.context!;
+    final isDarkTheme = Theme.of(ctx).brightness == Brightness.dark;
+    final actuators = ctrl.device.value?.actuators ?? [];
     
     return SingleChildScrollView(
       child: Padding(
@@ -278,11 +254,11 @@ class _DetailDevicePageState extends State<DetailDevicePage> with SingleTickerPr
         type: actuator.type,
         pinNumber: actuator.pinNumber,
         isActive: ctrl.actuatorStatus[actuator.id] ?? actuator.isOn,
-        onToggle: (value) => _toggleActuator(actuator.id, value),
+        onToggle: (value) => _toggleActuator(ctrl, actuator.id, value),
         mode: (ctrl.actuatorMode[actuator.id] ?? actuator.mode ?? 'manual') == 'auto'
           ? ActuatorMode.auto
           : ActuatorMode.manual,
-        onModeChanged: (mode) => _changeActuatorMode(actuator.id, mode),
+        onModeChanged: (mode) => _changeActuatorMode(ctrl, actuator.id, mode),
               ),
             )).toList(),
             
@@ -325,7 +301,7 @@ class _DetailDevicePageState extends State<DetailDevicePage> with SingleTickerPr
                     const SizedBox(height: 16),
                     
                     Text(
-                      'Current Plant: ${ctrl.selectedPlant?.rule.plantName ?? '-'}',
+                      'Current Plant: ${ctrl.selectedPlant.value?.rule.plantName ?? '-'}',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
@@ -336,7 +312,7 @@ class _DetailDevicePageState extends State<DetailDevicePage> with SingleTickerPr
                     const SizedBox(height: 8),
                     
                     Text(
-                      'Soil Moisture: ${ctrl.selectedPlant?.rule.minMoisture ?? '-'}% - ${ctrl.selectedPlant?.rule.maxMoisture ?? '-'}%',
+                      'Soil Moisture: ${ctrl.selectedPlant.value?.rule.minMoisture ?? '-'}% - ${ctrl.selectedPlant.value?.rule.maxMoisture ?? '-'}%',
                       style: TextStyle(
                         fontSize: 14,
                         color: isDarkTheme ? AppColors.darkTextSecondary : AppColors.gray,
@@ -346,7 +322,7 @@ class _DetailDevicePageState extends State<DetailDevicePage> with SingleTickerPr
                     const SizedBox(height: 4),
                     
                     Text(
-                      'Preferred Temperature: ${ctrl.selectedPlant?.rule.preferredTemp ?? '-'}°C',
+                      'Preferred Temperature: ${ctrl.selectedPlant.value?.rule.preferredTemp ?? '-'}°C',
                       style: TextStyle(
                         fontSize: 14,
                         color: isDarkTheme ? AppColors.darkTextSecondary : AppColors.gray,
@@ -356,7 +332,7 @@ class _DetailDevicePageState extends State<DetailDevicePage> with SingleTickerPr
                     const SizedBox(height: 4),
                     
                     Text(
-                      'Preferred Humidity: ${ctrl.selectedPlant?.rule.preferredHumidity ?? '-'}%',
+                      'Preferred Humidity: ${ctrl.selectedPlant.value?.rule.preferredHumidity ?? '-'}%',
                       style: TextStyle(
                         fontSize: 14,
                         color: isDarkTheme ? AppColors.darkTextSecondary : AppColors.gray,

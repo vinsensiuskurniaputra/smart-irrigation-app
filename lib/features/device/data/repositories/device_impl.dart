@@ -40,4 +40,23 @@ class DeviceRepositoryImpl implements DeviceRepository {
 		}
 		throw Exception('Invalid plant detail response');
 	}
+
+		// Actuator actions
+		Future<bool> controlActuator(int actuatorId, String action) async {
+			final response = await _apiService.controlActuator(actuatorId, action);
+			final data = response.data;
+			if (data is Map<String, dynamic> && data['data'] is Map<String, dynamic>) {
+				return (data['data']['action'] as String).toLowerCase() == 'on';
+			}
+			throw Exception('Invalid actuator control response');
+		}
+
+		Future<String> changeActuatorMode(int actuatorId, String mode) async {
+			final response = await _apiService.changeActuatorMode(actuatorId, mode);
+			final data = response.data;
+			if (data is Map<String, dynamic> && data['data'] is Map<String, dynamic>) {
+				return (data['data']['mode'] as String).toLowerCase();
+			}
+			throw Exception('Invalid actuator mode response');
+		}
 }

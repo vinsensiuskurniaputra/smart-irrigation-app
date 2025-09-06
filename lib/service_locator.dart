@@ -42,4 +42,6 @@ void setupServiceLocator(SharedPreferences prefs) {
   sl.registerSingleton<GetDetailDeviceUseCase>(GetDetailDeviceUseCase(sl<DeviceRepository>()));
   sl.registerSingleton<GetDevicePlantsUseCase>(GetDevicePlantsUseCase(sl<DeviceRepository>()));
   sl.registerSingleton<GetPlantDetailUseCase>(GetPlantDetailUseCase(sl<DeviceRepository>()));
+  sl.registerSingleton<ControlActuatorUseCase>(ControlActuatorUseCase(sl<DeviceRepository>()));
+  sl.registerSingleton<ChangeActuatorModeUseCase>(ChangeActuatorModeUseCase(sl<DeviceRepository>()));
 }

@@ -8,6 +8,8 @@ abstract class DeviceApiService {
 	Future<Response> getDeviceDetail(int deviceId);
 	Future<Response> getDevicePlants(int deviceId);
 	Future<Response> getPlantDetail(int plantId);
+	Future<Response> controlActuator(int actuatorId, String action);
+	Future<Response> changeActuatorMode(int actuatorId, String mode);
 }
 
 class DeviceApiServiceImpl implements DeviceApiService {
@@ -45,4 +47,22 @@ class DeviceApiServiceImpl implements DeviceApiService {
 			options: _withAuth(),
 		);
 	}
+
+		@override
+		Future<Response> controlActuator(int actuatorId, String action) {
+			return _client.post(
+				'${ApiUrls.actuator}/$actuatorId/control',
+				data: {'action': action},
+				options: _withAuth(),
+			);
+		}
+
+		@override
+		Future<Response> changeActuatorMode(int actuatorId, String mode) {
+			return _client.put(
+				'${ApiUrls.actuator}/$actuatorId/mode',
+				data: {'mode': mode},
+				options: _withAuth(),
+			);
+		}
 }

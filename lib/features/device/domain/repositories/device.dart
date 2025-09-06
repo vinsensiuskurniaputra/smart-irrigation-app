@@ -4,4 +4,6 @@ abstract class DeviceRepository {
 	Future<DetailDeviceEntity> getDeviceDetail(int deviceId);
 	Future<List<PlantEntity>> getDevicePlants(int deviceId);
 	Future<PlantEntity> getPlantDetail(int plantId);
+	Future<bool> controlActuator(int actuatorId, String action);
+	Future<String> changeActuatorMode(int actuatorId, String mode);
 }

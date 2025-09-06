@@ -18,3 +18,17 @@ class GetPlantDetailUseCase {
 	const GetPlantDetailUseCase(this.repository);
 	Future<PlantEntity> call(int plantId) => repository.getPlantDetail(plantId);
 }
+
+class ControlActuatorUseCase {
+	final DeviceRepository repository;
+	const ControlActuatorUseCase(this.repository);
+	Future<bool> call({required int actuatorId, required String action}) =>
+			repository.controlActuator(actuatorId, action);
+}
+
+class ChangeActuatorModeUseCase {
+	final DeviceRepository repository;
+	const ChangeActuatorModeUseCase(this.repository);
+	Future<String> call({required int actuatorId, required String mode}) =>
+			repository.changeActuatorMode(actuatorId, mode);
+}

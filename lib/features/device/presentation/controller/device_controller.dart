@@ -1,89 +1,96 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:smart_irrigation_app/features/device/domain/entities/detail_device_entity.dart';
 import 'package:smart_irrigation_app/features/device/domain/usecases/get_detail_device.dart';
 import 'package:smart_irrigation_app/service_locator.dart';
 
 enum DevicePageStatus { initial, loading, success, error }
 
-class DeviceController extends ChangeNotifier {
-  DetailDeviceEntity? device;
-  List<PlantEntity> plants = [];
-  PlantEntity? selectedPlant;
-  DevicePageStatus status = DevicePageStatus.initial;
-  String? error;
+class DeviceController extends GetxController with GetSingleTickerProviderStateMixin {
+  // Reactive state
+  final device = Rxn<DetailDeviceEntity>();
+  final plants = <PlantEntity>[].obs;
+  final selectedPlant = Rxn<PlantEntity>();
+  final status = DevicePageStatus.initial.obs;
+  final error = RxnString();
 
-  // Actuator local state
-  final Map<int, bool> actuatorStatus = {}; // actuatorId -> on/off
-  final Map<int, String> actuatorMode = {}; // actuatorId -> manual/auto
+  final actuatorStatus = <int, bool>{}.obs; // actuatorId -> on/off
+  final actuatorMode = <int, String>{}.obs; // actuatorId -> manual/auto
+  final currentTab = 0.obs;
 
-  // Sensor values
-  final Map<String, double> sensorValues = {
-    "soil_moisture": 68,
-    "temperature": 23.5,
-    "humidity": 65,
-  };
+  late TabController tabController;
 
-  // Sensor data history
-  final Map<String, List<double>> sensorHistory = {
-    "soil_moisture": [65, 62, 68, 75, 72, 70, 68],
-    "temperature": [24.5, 25.0, 26.2, 25.8, 24.3, 23.9, 23.5],
-    "humidity": [60, 58, 65, 70, 68, 72, 65],
-  };
+  final sensorValues = <String, double>{
+    'soil_moisture': 68,
+    'temperature': 23.5,
+    'humidity': 65,
+  }.obs;
+
+  final sensorHistory = <String, List<double>>{
+    'soil_moisture': [65, 62, 68, 75, 72, 70, 68],
+    'temperature': [24.5, 25.0, 26.2, 25.8, 24.3, 23.9, 23.5],
+    'humidity': [60, 58, 65, 70, 68, 72, 65],
+  }.obs;
 
   Future<void> load(int deviceId) async {
-    status = DevicePageStatus.loading;
-    notifyListeners();
+    status(DevicePageStatus.loading);
     try {
       final detail = await sl<GetDetailDeviceUseCase>()(deviceId);
-      device = detail;
+      device(detail);
       final plantList = await sl<GetDevicePlantsUseCase>()(deviceId);
-      plants = plantList;
-      if (plants.isNotEmpty) selectedPlant = plants.first;
-      // init actuators maps
+      plants.assignAll(plantList);
+      if (plantList.isNotEmpty) selectedPlant(plantList.first);
       for (final a in detail.actuators) {
         actuatorStatus[a.id] = a.isOn;
         actuatorMode[a.id] = a.mode ?? 'manual';
       }
-      status = DevicePageStatus.success;
+      status(DevicePageStatus.success);
     } catch (e) {
-      error = e.toString();
-      status = DevicePageStatus.error;
+      error(e.toString());
+      status(DevicePageStatus.error);
     }
-    notifyListeners();
   }
 
-  // Toggle actuator status
+  @override
+  void onInit() {
+    super.onInit();
+    tabController = TabController(length: 3, vsync: this);
+    tabController.addListener(() {
+      currentTab(tabController.index);
+    });
+  }
+
+  @override
+  void onClose() {
+    tabController.dispose();
+    super.onClose();
+  }
+
   void toggleActuator(int actuatorId, bool newValue) {
     actuatorStatus[actuatorId] = newValue;
-    // TODO: call actuator toggle API
-    notifyListeners();
+    final action = newValue ? 'on' : 'off';
+    sl<ControlActuatorUseCase>()(actuatorId: actuatorId, action: action).then((serverState) {
+      actuatorStatus[actuatorId] = serverState;
+    }).catchError((e) {
+      actuatorStatus[actuatorId] = !newValue; // revert
+      error('Actuator update failed: $e');
+    });
   }
 
-  // Update sensor value (for simulation purposes)
   void updateSensorValue(String sensorType, double value) {
     sensorValues[sensorType] = value;
-    
-    // Add to history (in a real app, this would be time-based)
     final history = sensorHistory[sensorType];
     if (history != null) {
       history.removeAt(0);
       history.add(value);
+      sensorHistory[sensorType] = List<double>.from(history);
     }
-    
-    notifyListeners();
   }
 
-  // Method to detect plant using camera
   Future<void> detectPlant() async {
-    // In a real app, this would open the camera and use ML to detect the plant
-    print('Detecting plant...');
-    
-    // Simulate a delay for API call
     await Future.delayed(const Duration(seconds: 2));
-    
-    // Simulate updating selectedPlant with new rule (immutably)
-    if (selectedPlant != null) {
-      final old = selectedPlant!;
+    if (selectedPlant.value != null) {
+      final old = selectedPlant.value!;
       final newRule = PlantRuleEntity(
         id: old.rule.id,
         plantName: 'Tomato',
@@ -92,18 +99,27 @@ class DeviceController extends ChangeNotifier {
         preferredTemp: 24,
         preferredHumidity: 75,
       );
-      selectedPlant = PlantEntity(
+      selectedPlant(PlantEntity(
         id: old.id,
         deviceId: old.deviceId,
         irrigationRuleId: old.irrigationRuleId,
         plantName: 'Tomato',
         imageUrl: old.imageUrl,
         rule: newRule,
-      );
+      ));
     }
-    notifyListeners();
   }
 
-  // Get device status
-  bool get isDeviceOnline => device?.isOnline ?? false;
+  bool get isDeviceOnline => device.value?.isOnline ?? false;
+
+  void changeMode(int actuatorId, String mode) {
+    final previous = actuatorMode[actuatorId];
+    actuatorMode[actuatorId] = mode;
+    sl<ChangeActuatorModeUseCase>()(actuatorId: actuatorId, mode: mode).then((serverMode) {
+      actuatorMode[actuatorId] = serverMode;
+    }).catchError((e) {
+      actuatorMode[actuatorId] = previous ?? actuatorMode[actuatorId] ?? 'manual';
+      error('Mode change failed: $e');
+    });
+  }
 }

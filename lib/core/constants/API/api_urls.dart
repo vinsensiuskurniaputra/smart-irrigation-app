@@ -23,4 +23,6 @@ class ApiUrls {
   
   static const resetDevice = '$baseUrl/devices';
   static const restartDevice = '$baseUrl/devices';
+  // Actuator base (append /{id}/control or /{id}/mode in services)
+  static const actuator = '$baseUrl/actuators';
 }
