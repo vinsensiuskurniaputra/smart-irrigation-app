@@ -1,6 +1,6 @@
 class ApiUrls {
   static const String baseUrl = String.fromEnvironment('BASE_URL', defaultValue: 'http://192.168.1.8:8080/api/v1');
-  static const String websocketUrl = String.fromEnvironment('WEBSOCKET_URL', defaultValue: 'wss://192.168.1.8/ws');
+  static const String websocketUrl = String.fromEnvironment('WEBSOCKET_URL', defaultValue: 'ws://192.168.1.8:8080/api/v1');
   // static const baseUrl = 'https://192.168.1.8/api/v2';
 
   static const login = '$baseUrl/login';
@@ -25,4 +25,11 @@ class ApiUrls {
   static const restartDevice = '$baseUrl/devices';
   // Actuator base (append /{id}/control or /{id}/mode in services)
   static const actuator = '$baseUrl/actuators';
+  
+  // Plant prediction endpoints
+  static const plantPredict = '$baseUrl/irrigation/predict';
+  static String savePlant(int deviceId) => '$baseUrl/irrigation/devices/$deviceId/plant';
+  
+  // WebSocket endpoints
+  static String deviceLive(int deviceId) => '$websocketUrl/devices/$deviceId/live';
 }

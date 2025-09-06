@@ -101,7 +101,7 @@ class SensorCard extends StatelessWidget {
   static SensorCard soilMoisture(double value) {
     return SensorCard(
       sensorType: 'soil_moisture',
-      value: value.toStringAsFixed(0),
+      value: value.toString(),
       unit: '%',
       icon: Icons.water_drop_outlined,
     );
@@ -110,7 +110,7 @@ class SensorCard extends StatelessWidget {
   static SensorCard temperature(double value) {
     return SensorCard(
       sensorType: 'temperature',
-      value: value.toStringAsFixed(1),
+      value: value.toString(),
       unit: '°C',
       icon: Icons.thermostat_outlined,
     );
@@ -119,18 +119,9 @@ class SensorCard extends StatelessWidget {
   static SensorCard humidity(double value) {
     return SensorCard(
       sensorType: 'humidity',
-      value: value.toStringAsFixed(0),
+      value: value.toString(),
       unit: '%',
       icon: Icons.water_outlined,
-    );
-  }
-
-  static SensorCard lightIntensity(double value) {
-    return SensorCard(
-      sensorType: 'light_intensity',
-      value: value.toStringAsFixed(0),
-      unit: 'lux',
-      icon: Icons.wb_sunny_outlined,
     );
   }
 }

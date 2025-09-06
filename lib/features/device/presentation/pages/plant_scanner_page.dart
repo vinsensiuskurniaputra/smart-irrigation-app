@@ -1,557 +1,491 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
-import 'package:google_mlkit_image_labeling/google_mlkit_image_labeling.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:get/get.dart';
 import 'package:smart_irrigation_app/core/config/theme/app_colors.dart';
+import 'package:smart_irrigation_app/features/device/presentation/controller/plant_scanner_controller.dart';
 
-class PlantScannerPage extends StatefulWidget {
+class PlantScannerPage extends StatelessWidget {
   const PlantScannerPage({super.key});
 
   @override
-  State<PlantScannerPage> createState() => _PlantScannerPageState();
-}
-
-class _PlantScannerPageState extends State<PlantScannerPage> {
-  CameraController? _cameraController;
-  List<CameraDescription>? _cameras;
-  bool _isInitialized = false;
-  bool _isProcessing = false;
-  File? _capturedImage;
-  String _predictedPlant = '';
-  List<String> _detectedLabels = [];
-  bool _isCaptured = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _requestCameraPermission();
-  }
-
-  Future<void> _requestCameraPermission() async {
-    final status = await Permission.camera.request();
-    if (status.isGranted) {
-      _initializeCamera();
-    } else {
-      // Show message that camera permission is required
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Camera permission is required to scan plants'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _initializeCamera() async {
-    try {
-      _cameras = await availableCameras();
-      if (_cameras != null && _cameras!.isNotEmpty) {
-        _cameraController = CameraController(
-          _cameras![0],
-          ResolutionPreset.high,
-          enableAudio: false,
-        );
-        await _cameraController!.initialize();
-        if (mounted) {
-          setState(() {
-            _isInitialized = true;
-          });
-        }
-      }
-    } catch (e) {
-      print('Error initializing camera: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error initializing camera: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _takePicture() async {
-    if (_cameraController == null || !_isInitialized) return;
-    
-    try {
-      setState(() {
-        _isProcessing = true;
-      });
-      
-      final XFile image = await _cameraController!.takePicture();
-      final File imageFile = File(image.path);
-      
-      setState(() {
-        _capturedImage = imageFile;
-        _isCaptured = true;
-        _isProcessing = false;
-      });
-    } catch (e) {
-      print('Error taking picture: $e');
-      setState(() {
-        _isProcessing = false;
-      });
-    }
-  }
-
-  Future<void> _predictPlant() async {
-    if (_capturedImage == null) return;
-    
-    setState(() {
-      _isProcessing = true;
-    });
-    
-    try {
-      // Using ML Kit for image labeling as a placeholder
-      final InputImage inputImage = InputImage.fromFile(_capturedImage!);
-      final ImageLabeler labeler = ImageLabeler(options: ImageLabelerOptions(confidenceThreshold: 0.7));
-      
-      final List<ImageLabel> labels = await labeler.processImage(inputImage);
-      
-      List<String> plantLabels = [];
-      for (ImageLabel label in labels) {
-        if (label.confidence > 0.7) {
-          plantLabels.add('${label.label} (${(label.confidence * 100).toStringAsFixed(1)}%)');
-        }
-      }
-      
-      // For demonstration purposes:
-      // In a real app, you would use a more sophisticated plant recognition model
-      // Here we simulate plant recognition with common vegetables/plants for irrigation
-      String predictedPlant = "Unknown Plant";
-      List<String> commonPlants = [
-        'tomato', 'chili', 'lettuce', 'cucumber', 'carrot', 'potato', 'pepper',
-        'basil', 'mint', 'rosemary', 'thyme', 'spinach'
-      ];
-      
-      // Find if any label contains a plant name
-      for (ImageLabel label in labels) {
-        String labelText = label.label.toLowerCase();
-        for (String plant in commonPlants) {
-          if (labelText.contains(plant)) {
-            predictedPlant = plant;
-            break;
-          }
-        }
-        if (predictedPlant != "Unknown Plant") break;
-      }
-      
-      // If no specific plant detected, use a default if any plant-like object is detected
-      if (predictedPlant == "Unknown Plant") {
-        for (ImageLabel label in labels) {
-          if (label.label.toLowerCase().contains('plant') || 
-              label.label.toLowerCase().contains('leaf') ||
-              label.label.toLowerCase().contains('flower') ||
-              label.label.toLowerCase().contains('vegetable')) {
-            // For demo purposes, return a random plant from our list
-            predictedPlant = commonPlants[DateTime.now().millisecond % commonPlants.length];
-            predictedPlant = predictedPlant.substring(0, 1).toUpperCase() + predictedPlant.substring(1);
-            break;
-          }
-        }
-      } else {
-        // Capitalize the first letter
-        predictedPlant = predictedPlant.substring(0, 1).toUpperCase() + predictedPlant.substring(1);
-      }
-      
-      setState(() {
-        _predictedPlant = predictedPlant;
-        _detectedLabels = plantLabels;
-        _isProcessing = false;
-      });
-      
-      await labeler.close();
-      
-      // Return with the predicted plant
-      Navigator.pop(context, {
-        'plantName': _predictedPlant,
-        'imageFile': _capturedImage,
-      });
-      
-    } catch (e) {
-      print('Error predicting plant: $e');
-      setState(() {
-        _isProcessing = false;
-        _predictedPlant = 'Error: Unable to identify plant';
-      });
-      
-      // Show error dialog
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error identifying plant: ${e.toString().split(':').first}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  void _retakePhoto() {
-    setState(() {
-      _capturedImage = null;
-      _isCaptured = false;
-      _predictedPlant = '';
-      _detectedLabels = [];
-    });
-  }
-
-  @override
-  void dispose() {
-    _cameraController?.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final controller = Get.put(PlantScannerController());
     final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
     
     return Scaffold(
       backgroundColor: isDarkTheme ? AppColors.darkBackground : AppColors.white,
-      appBar: AppBar(
-        backgroundColor: isDarkTheme ? AppColors.darkBackground : AppColors.white,
-        elevation: 0,
-        centerTitle: true,
-        title: Text(
-          'Plant Scanner',
-          style: TextStyle(
-            color: isDarkTheme ? AppColors.darkText : AppColors.primary,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back,
-            color: isDarkTheme ? AppColors.darkText : AppColors.primary,
-          ),
-          onPressed: () => Navigator.pop(context),
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildAppBar(isDarkTheme),
+            Expanded(
+              child: Obx(() => controller.isInitialized.value 
+                ? _buildContent(controller, isDarkTheme) 
+                : _buildLoadingIndicator(controller, isDarkTheme)
+              ),
+            ),
+          ],
         ),
       ),
-      body: _isInitialized ? _buildContent(isDarkTheme) : _buildLoadingIndicator(isDarkTheme),
     );
   }
 
-  Widget _buildContent(bool isDarkTheme) {
-    if (_isCaptured && _capturedImage != null) {
-      return _buildImagePreviewScreen(isDarkTheme);
-    } else {
-      return _buildCameraPreviewScreen(isDarkTheme);
-    }
+  Widget _buildAppBar(bool isDarkTheme) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      child: Row(
+        children: [
+          IconButton(
+            icon: Icon(
+              Icons.arrow_back_ios,
+              color: isDarkTheme ? AppColors.darkText : AppColors.primary,
+              size: 20,
+            ),
+            onPressed: () => Get.back(),
+          ),
+          Expanded(
+            child: Text(
+              'Plant Scanner',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: isDarkTheme ? AppColors.darkText : AppColors.primary,
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const SizedBox(width: 40), // Balance the back button
+        ],
+      ),
+    );
   }
 
-  Widget _buildCameraPreviewScreen(bool isDarkTheme) {
+  Widget _buildContent(PlantScannerController controller, bool isDarkTheme) {
+    return Obx(() {
+      if (controller.isCaptured.value && controller.capturedImage != null) {
+        return _buildImagePreviewScreen(controller, isDarkTheme);
+      } else {
+        return _buildCameraPreviewScreen(controller, isDarkTheme);
+      }
+    });
+  }
+
+  Widget _buildCameraPreviewScreen(PlantScannerController controller, bool isDarkTheme) {
     return Column(
       children: [
         Expanded(
           child: Stack(
-            alignment: Alignment.center,
             children: [
               // Camera Preview
-              ClipRRect(
-                child: SizedBox(
-                  width: double.infinity,
-                  child: CameraPreview(_cameraController!),
+              Container(
+                width: double.infinity,
+                height: double.infinity,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: CameraPreview(controller.cameraController!),
                 ),
               ),
               
-              // Overlay frame for plant scanning
+              // Overlay frame for plant scanning - Made taller and more minimalist
               Center(
                 child: Container(
-                  width: MediaQuery.of(context).size.width * 0.8,
-                  height: MediaQuery.of(context).size.width * 0.8,
+                  width: MediaQuery.of(Get.context!).size.width * 0.85,
+                  height: MediaQuery.of(Get.context!).size.height * 0.5, // Increased height
                   decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: Colors.white,
+                      color: Colors.white.withOpacity(0.8),
                       width: 2,
                     ),
                   ),
                   child: Stack(
                     children: [
-                      // Top-left corner
-                      Positioned(
-                        left: -10,
-                        top: -10,
-                        child: Container(
-                          width: 40,
-                          height: 40,
-                          decoration: const BoxDecoration(
-                            border: Border(
-                              top: BorderSide(color: Colors.white, width: 4),
-                              left: BorderSide(color: Colors.white, width: 4),
+                      // Simple corner indicators
+                      ...List.generate(4, (index) {
+                        return Positioned(
+                          left: index % 2 == 0 ? 10 : null,
+                          right: index % 2 == 1 ? 10 : null,
+                          top: index < 2 ? 10 : null,
+                          bottom: index >= 2 ? 10 : null,
+                          child: Container(
+                            width: 30,
+                            height: 30,
+                            decoration: BoxDecoration(
+                              border: Border(
+                                top: index < 2 ? const BorderSide(color: Colors.white, width: 3) : BorderSide.none,
+                                bottom: index >= 2 ? const BorderSide(color: Colors.white, width: 3) : BorderSide.none,
+                                left: index % 2 == 0 ? const BorderSide(color: Colors.white, width: 3) : BorderSide.none,
+                                right: index % 2 == 1 ? const BorderSide(color: Colors.white, width: 3) : BorderSide.none,
+                              ),
                             ),
                           ),
-                        ),
-                      ),
+                        );
+                      }),
                       
-                      // Top-right corner
-                      Positioned(
-                        right: -10,
-                        top: -10,
+                      // Center text
+                      Center(
                         child: Container(
-                          width: 40,
-                          height: 40,
-                          decoration: const BoxDecoration(
-                            border: Border(
-                              top: BorderSide(color: Colors.white, width: 4),
-                              right: BorderSide(color: Colors.white, width: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.6),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            'Position plant in center',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
-                        ),
-                      ),
-                      
-                      // Bottom-left corner
-                      Positioned(
-                        left: -10,
-                        bottom: -10,
-                        child: Container(
-                          width: 40,
-                          height: 40,
-                          decoration: const BoxDecoration(
-                            border: Border(
-                              bottom: BorderSide(color: Colors.white, width: 4),
-                              left: BorderSide(color: Colors.white, width: 4),
-                            ),
-                          ),
-                        ),
-                      ),
-                      
-                      // Bottom-right corner
-                      Positioned(
-                        right: -10,
-                        bottom: -10,
-                        child: Container(
-                          width: 40,
-                          height: 40,
-                          decoration: const BoxDecoration(
-                            border: Border(
-                              bottom: BorderSide(color: Colors.white, width: 4),
-                              right: BorderSide(color: Colors.white, width: 4),
-                            ),
-                          ),
-                        ),
-                      ),
-                      
-                      // Horizontal scanning line
-                      Positioned(
-                        left: 0,
-                        right: 0,
-                        top: MediaQuery.of(context).size.width * 0.4,
-                        child: Container(
-                          height: 2,
-                          color: Colors.red.withOpacity(0.7),
                         ),
                       ),
                     ],
                   ),
                 ),
               ),
-              
-              // Scanning label
-              Positioned(
-                bottom: 80,
-                child: Text(
-                  'Scanning...',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-              
-              // Progress indicator
-              Positioned(
-                bottom: 50,
-                left: 30,
-                right: 30,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: LinearProgressIndicator(
-                    minHeight: 6,
-                    backgroundColor: Colors.white.withOpacity(0.3),
-                    valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-                  ),
-                ),
-              ),
             ],
           ),
         ),
         
-        // Bottom capture area
+        // Bottom capture area - Simplified
         Container(
-          height: 100,
-          color: isDarkTheme ? AppColors.darkCard : AppColors.white,
+          height: 120,
+          padding: const EdgeInsets.all(20),
           child: Center(
-            child: GestureDetector(
-              onTap: !_isProcessing ? _takePicture : null,
+            child: Obx(() => GestureDetector(
+              onTap: !controller.isProcessing.value ? controller.takePicture : null,
               child: Container(
-                width: 70,
-                height: 70,
-                padding: const EdgeInsets.all(3),
+                width: 80,
+                height: 80,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(
-                    color: isDarkTheme ? AppColors.darkText : AppColors.primary,
-                    width: 3,
-                  ),
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-                child: Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: isDarkTheme ? AppColors.darkTextSecondary : AppColors.primary_500,
-                  ),
-                  child: _isProcessing 
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Icon(Icons.camera_alt, size: 32, color: Colors.white),
-                ),
+                child: controller.isProcessing.value 
+                  ? const CircularProgressIndicator(color: AppColors.primary)
+                  : const Icon(Icons.camera_alt, size: 36, color: AppColors.primary),
               ),
-            ),
+            )),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildImagePreviewScreen(bool isDarkTheme) {
+  Widget _buildImagePreviewScreen(PlantScannerController controller, bool isDarkTheme) {
     return Column(
       children: [
         Expanded(
           child: Stack(
-            alignment: Alignment.center,
             children: [
               // Captured image
-              Image.file(
-                _capturedImage!,
+              Container(
                 width: double.infinity,
                 height: double.infinity,
-                fit: BoxFit.contain,
-              ),
-              
-              // Prediction overlay if there's a result
-              if (_predictedPlant.isNotEmpty && _predictedPlant != 'Unknown Plant')
-                Positioned(
-                  top: 20,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.8),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.check_circle, color: Colors.white, size: 20),
-                        const SizedBox(width: 8),
-                        Text(
-                          _predictedPlant,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: Image.file(
+                    controller.capturedImage!,
+                    fit: BoxFit.cover,
                   ),
                 ),
+              ),
+              
+              // Prediction overlay
+              Obx(() {
+                if (controller.predictedPlant.value.isNotEmpty && 
+                    controller.predictedPlant.value != 'Unknown Plant' &&
+                    controller.canSave.value) {
+                  return Positioned(
+                    top: 20,
+                    left: 20,
+                    right: 20,
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.9),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 10,
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.eco, color: Colors.white, size: 24),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  controller.predictedPlant.value,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              const Icon(Icons.verified, color: Colors.white, size: 16),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Confidence: ${(controller.confidence.value * 100).toStringAsFixed(1)}%',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                } else if (controller.predictedPlant.value.isNotEmpty && 
+                          !controller.canSave.value) {
+                  return Positioned(
+                    top: 20,
+                    left: 20,
+                    right: 20,
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withOpacity(0.9),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 10,
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.warning, color: Colors.white, size: 24),
+                              const SizedBox(width: 12),
+                              const Expanded(
+                                child: Text(
+                                  'Unknown Plant',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              const Icon(Icons.info, color: Colors.white, size: 16),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Confidence too low: ${(controller.confidence.value * 100).toStringAsFixed(1)}%',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+                return const SizedBox.shrink();
+              }),
             ],
           ),
         ),
         
-        // Bottom action area
+        // Bottom action area - Updated for new flow
         Container(
-          height: 120,
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          color: isDarkTheme ? AppColors.darkCard : AppColors.white,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              // Retake button
-              Expanded(
-                child: TextButton.icon(
-                  onPressed: !_isProcessing ? _retakePhoto : null,
-                  icon: Icon(
-                    Icons.refresh,
-                    color: isDarkTheme ? AppColors.darkTextSecondary : AppColors.gray,
-                  ),
-                  label: Text(
-                    'Retake',
-                    style: TextStyle(
-                      color: isDarkTheme ? AppColors.darkTextSecondary : AppColors.gray,
-                    ),
-                  ),
-                  style: TextButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      side: BorderSide(
-                        color: isDarkTheme ? AppColors.darkDivider : AppColors.platinum,
+          padding: const EdgeInsets.all(20),
+          child: Obx(() {
+            if (controller.predictedPlant.value.isEmpty) {
+              // Initial state - show Identify button
+              return Row(
+                children: [
+                  // Retake button
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: !controller.isProcessing.value ? controller.retakePhoto : null,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Retake'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        side: BorderSide(
+                          color: isDarkTheme ? AppColors.darkDivider : AppColors.platinum,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ),
-              
-              const SizedBox(width: 16),
-              
-              // Predict button
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: !_isProcessing ? _predictPlant : null,
-                  icon: _isProcessing 
-                    ? SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: isDarkTheme ? AppColors.darkCard : Colors.white,
+                  
+                  const SizedBox(width: 16),
+                  
+                  // Identify button
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton.icon(
+                      onPressed: !controller.isProcessing.value ? controller.predictPlant : null,
+                      icon: controller.isProcessing.value 
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.eco, size: 20),
+                      label: Text(controller.isProcessing.value ? 'Analyzing...' : 'Identify Plant'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                      )
-                    : const Icon(Icons.eco_outlined, size: 20),
-                  label: Text(_isProcessing ? 'Processing...' : 'Identify Plant'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: isDarkTheme ? AppColors.silver : AppColors.primary,
-                    foregroundColor: isDarkTheme ? AppColors.darkCard : Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                        elevation: 0,
+                      ),
                     ),
                   ),
-                ),
-              ),
-            ],
-          ),
+                ],
+              );
+            } else {
+              // After prediction - show Retake and Save buttons
+              return Row(
+                children: [
+                  // Retake button
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: !controller.isProcessing.value ? controller.retakePhoto : null,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Retake'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        side: BorderSide(
+                          color: isDarkTheme ? AppColors.darkDivider : AppColors.platinum,
+                        ),
+                      ),
+                    ),
+                  ),
+                  
+                  const SizedBox(width: 16),
+                  
+                  // Save button (enabled only if canSave is true)
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton.icon(
+                      onPressed: (!controller.isProcessing.value && controller.canSave.value) 
+                        ? controller.savePlant 
+                        : null,
+                      icon: controller.isProcessing.value 
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.save, size: 20),
+                      label: Text(
+                        controller.isProcessing.value 
+                          ? 'Saving...' 
+                          : controller.canSave.value 
+                            ? 'Save Plant' 
+                            : 'Cannot Save'
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: controller.canSave.value 
+                          ? AppColors.primary 
+                          : (isDarkTheme ? AppColors.darkDivider : AppColors.platinum),
+                        foregroundColor: controller.canSave.value 
+                          ? Colors.white 
+                          : (isDarkTheme ? AppColors.darkText.withOpacity(0.5) : AppColors.charcoal.withOpacity(0.5)),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            }
+          }),
         ),
       ],
     );
   }
 
-  Widget _buildLoadingIndicator(bool isDarkTheme) {
+  Widget _buildLoadingIndicator(PlantScannerController controller, bool isDarkTheme) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircularProgressIndicator(
-            color: isDarkTheme ? AppColors.silver : AppColors.primary,
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: isDarkTheme ? AppColors.darkCard : Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 20,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Center(
+              child: CircularProgressIndicator(
+                color: isDarkTheme ? AppColors.silver : AppColors.primary,
+                strokeWidth: 3,
+              ),
+            ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 32),
           Text(
             'Initializing camera...',
             style: TextStyle(
               color: isDarkTheme ? AppColors.darkText : AppColors.primary,
               fontSize: 16,
+              fontWeight: FontWeight.w500,
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
           TextButton.icon(
-            onPressed: () {
-              _requestCameraPermission();
-            },
+            onPressed: controller.retryInitialization,
             icon: Icon(
               Icons.refresh,
               color: isDarkTheme ? AppColors.silver : AppColors.primary,
