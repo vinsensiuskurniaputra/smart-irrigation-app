@@ -1,59 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:smart_irrigation_app/features/device/domain/entities/detail_device_entity.dart';
+import 'package:smart_irrigation_app/features/device/domain/usecases/get_detail_device.dart';
+import 'package:smart_irrigation_app/service_locator.dart';
+
+enum DevicePageStatus { initial, loading, success, error }
 
 class DeviceController extends ChangeNotifier {
-  // Mock data
-  final Map<String, dynamic> deviceData = {
-    "id": 1,
-    "device_name": "Greenhouse",
-    "device_code": "GH-001",
-    "status": "online",
-    "sensors": [
-      {
-        "id": 1,
-        "sensor_type": "soil_moisture"
-      },
-      {
-        "id": 2,
-        "sensor_type": "temperature"
-      },
-      {
-        "id": 3,
-        "sensor_type": "humidity"
-      }
-    ],
-    "actuators": [
-      {
-        "id": 1,
-        "actuator_name": "Water Pump",
-        "type": "pump",
-        "pin_number": "A1",
-        "status": "off"
-      },
-      {
-        "id": 2,
-        "actuator_name": "Grow Light",
-        "type": "lamp",
-        "pin_number": "A2",
-        "status": "off"
-      }
-    ]
-  };
+  DetailDeviceEntity? device;
+  List<PlantEntity> plants = [];
+  PlantEntity? selectedPlant;
+  DevicePageStatus status = DevicePageStatus.initial;
+  String? error;
 
-  final Map<String, dynamic> plantData = {
-    "id": 1,
-    "device_id": 1,
-    "irrigation_rule_id": 5,
-    "plant_name": "chili",
-    "image_url": "",
-    "rule": {
-      "id": 5,
-      "plant_name": "Chili",
-      "min_moisture": 60,
-      "max_moisture": 80,
-      "preferred_temp": 17,
-      "preferred_humidity": 70
-    }
-  };
+  // Actuator local state
+  final Map<int, bool> actuatorStatus = {}; // actuatorId -> on/off
+  final Map<int, String> actuatorMode = {}; // actuatorId -> manual/auto
 
   // Sensor values
   final Map<String, double> sensorValues = {
@@ -69,25 +30,32 @@ class DeviceController extends ChangeNotifier {
     "humidity": [60, 58, 65, 70, 68, 72, 65],
   };
 
-  // Actuator status
-  final Map<int, bool> actuatorStatus = {};
-
-  // Constructor
-  DeviceController() {
-    // Initialize actuator status
-    final actuators = deviceData['actuators'] as List;
-    for (var actuator in actuators) {
-      actuatorStatus[actuator['id']] = actuator['status'] == 'on';
+  Future<void> load(int deviceId) async {
+    status = DevicePageStatus.loading;
+    notifyListeners();
+    try {
+      final detail = await sl<GetDetailDeviceUseCase>()(deviceId);
+      device = detail;
+      final plantList = await sl<GetDevicePlantsUseCase>()(deviceId);
+      plants = plantList;
+      if (plants.isNotEmpty) selectedPlant = plants.first;
+      // init actuators maps
+      for (final a in detail.actuators) {
+        actuatorStatus[a.id] = a.isOn;
+        actuatorMode[a.id] = a.mode ?? 'manual';
+      }
+      status = DevicePageStatus.success;
+    } catch (e) {
+      error = e.toString();
+      status = DevicePageStatus.error;
     }
+    notifyListeners();
   }
 
   // Toggle actuator status
   void toggleActuator(int actuatorId, bool newValue) {
     actuatorStatus[actuatorId] = newValue;
-    
-    // In a real app, this would call an API
-    print('Actuator $actuatorId set to ${newValue ? "on" : "off"}');
-    
+    // TODO: call actuator toggle API
     notifyListeners();
   }
 
@@ -113,17 +81,29 @@ class DeviceController extends ChangeNotifier {
     // Simulate a delay for API call
     await Future.delayed(const Duration(seconds: 2));
     
-    // Update plant data (simulated)
-    plantData['plant_name'] = 'Tomato';
-    (plantData['rule'] as Map<String, dynamic>)['plant_name'] = 'Tomato';
-    (plantData['rule'] as Map<String, dynamic>)['min_moisture'] = 65;
-    (plantData['rule'] as Map<String, dynamic>)['max_moisture'] = 85;
-    (plantData['rule'] as Map<String, dynamic>)['preferred_temp'] = 24;
-    (plantData['rule'] as Map<String, dynamic>)['preferred_humidity'] = 75;
-    
+    // Simulate updating selectedPlant with new rule (immutably)
+    if (selectedPlant != null) {
+      final old = selectedPlant!;
+      final newRule = PlantRuleEntity(
+        id: old.rule.id,
+        plantName: 'Tomato',
+        minMoisture: 65,
+        maxMoisture: 85,
+        preferredTemp: 24,
+        preferredHumidity: 75,
+      );
+      selectedPlant = PlantEntity(
+        id: old.id,
+        deviceId: old.deviceId,
+        irrigationRuleId: old.irrigationRuleId,
+        plantName: 'Tomato',
+        imageUrl: old.imageUrl,
+        rule: newRule,
+      );
+    }
     notifyListeners();
   }
 
   // Get device status
-  bool get isDeviceOnline => deviceData['status'] == 'online';
+  bool get isDeviceOnline => device?.isOnline ?? false;
 }

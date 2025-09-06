@@ -12,6 +12,10 @@ import 'package:smart_irrigation_app/features/home/data/services/home_api_servic
 import 'package:smart_irrigation_app/features/home/data/repositories/home_impl.dart';
 import 'package:smart_irrigation_app/features/home/domain/repositories/home.dart';
 import 'package:smart_irrigation_app/features/home/domain/usecases/get_device_list_usecase.dart';
+import 'package:smart_irrigation_app/features/device/data/services/device_api_service.dart';
+import 'package:smart_irrigation_app/features/device/data/repositories/device_impl.dart';
+import 'package:smart_irrigation_app/features/device/domain/repositories/device.dart';
+import 'package:smart_irrigation_app/features/device/domain/usecases/get_detail_device.dart';
 
 final sl = GetIt.instance;
 
@@ -24,13 +28,18 @@ void setupServiceLocator(SharedPreferences prefs) {
   //Data Source
   sl.registerSingleton<AuthApiService>(AuthApiServiceImpl());
   sl.registerSingleton<HomeApiService>(HomeApiServiceImpl());
+  sl.registerSingleton<DeviceApiService>(DeviceApiServiceImpl(sl<DioClient>()));
 
   // Repostory
   sl.registerSingleton<AuthRepository>(AuthRepositoryImpl());
   sl.registerSingleton<HomeRepository>(HomeRepositoryImpl(sl<HomeApiService>()));
+  sl.registerSingleton<DeviceRepository>(DeviceRepositoryImpl(sl<DeviceApiService>()));
 
   // Usecase
   sl.registerSingleton<SigninUseCase>(SigninUseCase());
   sl.registerSingleton<SignupUseCase>(SignupUseCase());
   sl.registerSingleton<GetDeviceListUseCase>(GetDeviceListUseCase(sl<HomeRepository>()));
+  sl.registerSingleton<GetDetailDeviceUseCase>(GetDetailDeviceUseCase(sl<DeviceRepository>()));
+  sl.registerSingleton<GetDevicePlantsUseCase>(GetDevicePlantsUseCase(sl<DeviceRepository>()));
+  sl.registerSingleton<GetPlantDetailUseCase>(GetPlantDetailUseCase(sl<DeviceRepository>()));
 }

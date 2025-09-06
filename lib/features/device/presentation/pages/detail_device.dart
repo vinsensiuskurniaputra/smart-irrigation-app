@@ -5,6 +5,7 @@ import 'package:smart_irrigation_app/features/device/presentation/widget/actuato
 import 'package:smart_irrigation_app/features/device/presentation/widget/plant_info_card.dart';
 import 'package:smart_irrigation_app/features/device/presentation/widget/sensor_card.dart';
 import 'package:smart_irrigation_app/features/device/presentation/widget/sensor_data_chart.dart';
+import 'package:smart_irrigation_app/features/device/presentation/controller/device_controller.dart';
 
 class DetailDevicePage extends StatefulWidget {
   final int deviceId;
@@ -21,80 +22,7 @@ class DetailDevicePage extends StatefulWidget {
 class _DetailDevicePageState extends State<DetailDevicePage> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   int _selectedTabIndex = 0;
-
-  // Mock data - in a real app, this would come from a controller/API
-  final _mockDevice = {
-    "id": 1,
-    "device_name": "Greenhouse",
-    "device_code": "GH-001",
-    "status": "online",
-    "sensors": [
-      {
-        "id": 1,
-        "sensor_type": "soil_moisture"
-      },
-      {
-        "id": 2,
-        "sensor_type": "temperature"
-      },
-      {
-        "id": 3,
-        "sensor_type": "humidity"
-      }
-    ],
-    "actuators": [
-      {
-        "id": 1,
-        "actuator_name": "Water Pump",
-        "type": "pump",
-        "pin_number": "A1",
-        "status": "off",
-        "mode": "manual"
-      },
-      {
-        "id": 2,
-        "actuator_name": "Grow Light",
-        "type": "lamp",
-        "pin_number": "A2",
-        "status": "off",
-        "mode": "manual"
-      }
-    ]
-  };
-
-  final _mockPlantData = {
-    "id": 1,
-    "device_id": 1,
-    "irrigation_rule_id": 5,
-    "plant_name": "chili",
-    "image_url": "",
-    "rule": {
-      "id": 5,
-      "plant_name": "Chili",
-      "min_moisture": 60,
-      "max_moisture": 80,
-      "preferred_temp": 17,
-      "preferred_humidity": 70
-    }
-  };
-
-  // Mock sensor values
-  final Map<String, double> _sensorValues = {
-    "soil_moisture": 68,
-    "temperature": 23.5,
-    "humidity": 65,
-  };
-
-  // Mock sensor data for charts
-  final Map<String, List<double>> _sensorChartData = {
-    "soil_moisture": [65, 62, 68, 75, 72, 70, 68],
-    "temperature": [24.5, 25.0, 26.2, 25.8, 24.3, 23.9, 23.5],
-    "humidity": [60, 58, 65, 70, 68, 72, 65],
-  };
-
-  // Actuator status and mode
-  final Map<int, bool> _actuatorStatus = {};
-  final Map<int, ActuatorMode> _actuatorModes = {};
+  late DeviceController controller;
 
   @override
   void initState() {
@@ -105,36 +33,44 @@ class _DetailDevicePageState extends State<DetailDevicePage> with SingleTickerPr
         _selectedTabIndex = _tabController.index;
       });
     });
-
-    // Initialize actuator status and mode
-    for (var actuator in _mockDevice['actuators'] as List) {
-      _actuatorStatus[actuator['id']] = actuator['status'] == 'on';
-      _actuatorModes[actuator['id']] = actuator['mode'] == 'auto' ? ActuatorMode.auto : ActuatorMode.manual;
-    }
+  controller = DeviceController();
+  controller.addListener(_onControllerChanged);
+  controller.load(widget.deviceId);
   }
 
   @override
   void dispose() {
+    controller.removeListener(_onControllerChanged);
     _tabController.dispose();
     super.dispose();
   }
 
-  void _toggleActuator(int actuatorId, bool newValue) {
-    setState(() {
-      _actuatorStatus[actuatorId] = newValue;
-    });
-
-    // In a real app, you would call an API here
-    print('Toggled actuator $actuatorId to ${newValue ? "on" : "off"}');
+  void _onControllerChanged() {
+    if (mounted) setState(() {}); // Rebuild to reflect loading/success/error state changes
   }
-  
+
+  void _toggleActuator(int actuatorId, bool newValue) => controller.toggleActuator(actuatorId, newValue);
   void _changeActuatorMode(int actuatorId, ActuatorMode newMode) {
-    setState(() {
-      _actuatorModes[actuatorId] = newMode;
-    });
-    
-    // In a real app, you would call an API here
-    print('Changed actuator $actuatorId mode to ${newMode.toString().split('.').last}');
+    // TODO: mode change API
+    controller.actuatorMode[actuatorId] = newMode.name;
+    setState(() {});
+  }
+
+  Widget _buildBody(DeviceController ctrl) {
+    if (ctrl.status == DevicePageStatus.loading || ctrl.status == DevicePageStatus.initial) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (ctrl.status == DevicePageStatus.error) {
+      return Center(child: Text(ctrl.error ?? 'Error'));
+    }
+    return TabBarView(
+      controller: _tabController,
+      children: [
+        _buildOverviewTab(ctrl),
+        _buildChartsTab(ctrl),
+        _buildControlsTab(ctrl),
+      ],
+    );
   }
 
   void _onPredictPlant() async {
@@ -150,9 +86,7 @@ class _DetailDevicePageState extends State<DetailDevicePage> with SingleTickerPr
     if (result != null && result is Map<String, dynamic>) {
       setState(() {
         // Update plant name if returned from scanner
-        if (result['plantName'] != null) {
-          _mockPlantData['plant_name'] = result['plantName'];
-        }
+  // TODO: integrate detecting plant update with controller
         
         // Update plant image if returned from scanner
         if (result['imageFile'] != null) {
@@ -171,12 +105,12 @@ class _DetailDevicePageState extends State<DetailDevicePage> with SingleTickerPr
 
   @override
   Widget build(BuildContext context) {
-    final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
-    
-    return Scaffold(
+  final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
+  final title = controller.device?.deviceName ?? 'Device';
+  return Scaffold(
       appBar: AppBar(
         title: Text(
-          _mockDevice['device_name'].toString(),
+          title,
           style: const TextStyle(fontSize: 18),
         ),
         centerTitle: true,
@@ -193,22 +127,9 @@ class _DetailDevicePageState extends State<DetailDevicePage> with SingleTickerPr
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          // Overview Tab
-          _buildOverviewTab(),
-          
-          // Charts Tab
-          _buildChartsTab(),
-          
-          // Controls Tab
-          _buildControlsTab(),
-        ],
-      ),
+      body: _buildBody(controller),
       floatingActionButton: _selectedTabIndex == 2 ? FloatingActionButton(
         onPressed: () {
-          // In a real app, you would save actuator settings here
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Settings saved')),
           );
@@ -219,10 +140,12 @@ class _DetailDevicePageState extends State<DetailDevicePage> with SingleTickerPr
           color: isDarkTheme ? AppColors.darkText : AppColors.white,
         ),
       ) : null,
-    );
+  );
+
+  // _buildBody is placed above build to avoid forward reference issues
   }
 
-  Widget _buildOverviewTab() {
+  Widget _buildOverviewTab(DeviceController ctrl) {
     return SingleChildScrollView(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -233,11 +156,11 @@ class _DetailDevicePageState extends State<DetailDevicePage> with SingleTickerPr
             Row(
               children: [
                 Expanded(
-                  child: SensorCard.soilMoisture(_sensorValues['soil_moisture']!),
+                  child: SensorCard.soilMoisture(ctrl.sensorValues['soil_moisture']!),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
-                  child: SensorCard.temperature(_sensorValues['temperature']!),
+                  child: SensorCard.temperature(ctrl.sensorValues['temperature']!),
                 ),
               ],
             ),
@@ -245,24 +168,31 @@ class _DetailDevicePageState extends State<DetailDevicePage> with SingleTickerPr
             const SizedBox(height: 16),
             
             // Humidity card
-            SensorCard.humidity(_sensorValues['humidity']!),
+            SensorCard.humidity(ctrl.sensorValues['humidity']!),
             
             const SizedBox(height: 24),
             
             // Plant info
-            PlantInfoCard(
-              plantName: _mockPlantData['plant_name'].toString(),
-              imageUrl: _mockPlantData['image_url'].toString(),
-              irrigationRules: _mockPlantData['rule'] as Map<String, dynamic>,
-              onPredictPlant: _onPredictPlant,
-            ),
+            if (ctrl.selectedPlant != null)
+              PlantInfoCard(
+                plantName: ctrl.selectedPlant!.plantName,
+                imageUrl: ctrl.selectedPlant!.imageUrl,
+                irrigationRules: {
+                  'plant_name': ctrl.selectedPlant!.rule.plantName,
+                  'min_moisture': ctrl.selectedPlant!.rule.minMoisture,
+                  'max_moisture': ctrl.selectedPlant!.rule.maxMoisture,
+                  'preferred_temp': ctrl.selectedPlant!.rule.preferredTemp,
+                  'preferred_humidity': ctrl.selectedPlant!.rule.preferredHumidity,
+                },
+                onPredictPlant: _onPredictPlant,
+              ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildChartsTab() {
+  Widget _buildChartsTab(DeviceController ctrl) {
     return SingleChildScrollView(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -272,7 +202,7 @@ class _DetailDevicePageState extends State<DetailDevicePage> with SingleTickerPr
             // Soil Moisture Chart
             SensorDataChart(
               title: 'Soil Moisture',
-              dataPoints: _sensorChartData['soil_moisture']!,
+              dataPoints: ctrl.sensorHistory['soil_moisture']!,
               unit: '%',
               minValue: 50,
               maxValue: 90,
@@ -284,7 +214,7 @@ class _DetailDevicePageState extends State<DetailDevicePage> with SingleTickerPr
             // Temperature Chart
             SensorDataChart(
               title: 'Temperature',
-              dataPoints: _sensorChartData['temperature']!,
+              dataPoints: ctrl.sensorHistory['temperature']!,
               unit: '°C',
               minValue: 20,
               maxValue: 30,
@@ -296,7 +226,7 @@ class _DetailDevicePageState extends State<DetailDevicePage> with SingleTickerPr
             // Humidity Chart
             SensorDataChart(
               title: 'Humidity',
-              dataPoints: _sensorChartData['humidity']!,
+              dataPoints: ctrl.sensorHistory['humidity']!,
               unit: '%',
               minValue: 50,
               maxValue: 80,
@@ -308,9 +238,9 @@ class _DetailDevicePageState extends State<DetailDevicePage> with SingleTickerPr
     );
   }
 
-  Widget _buildControlsTab() {
+  Widget _buildControlsTab(DeviceController ctrl) {
     final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
-    final actuators = _mockDevice['actuators'] as List;
+    final actuators = ctrl.device?.actuators ?? [];
     
     return SingleChildScrollView(
       child: Padding(
@@ -344,13 +274,15 @@ class _DetailDevicePageState extends State<DetailDevicePage> with SingleTickerPr
             ...actuators.map((actuator) => Padding(
               padding: const EdgeInsets.only(bottom: 16),
               child: ActuatorControlCard(
-                actuatorName: actuator['actuator_name'],
-                type: actuator['type'],
-                pinNumber: actuator['pin_number'],
-                isActive: _actuatorStatus[actuator['id']] ?? false,
-                onToggle: (value) => _toggleActuator(actuator['id'], value),
-                mode: _actuatorModes[actuator['id']] ?? ActuatorMode.manual,
-                onModeChanged: (mode) => _changeActuatorMode(actuator['id'], mode),
+        actuatorName: actuator.actuatorName,
+        type: actuator.type,
+        pinNumber: actuator.pinNumber,
+        isActive: ctrl.actuatorStatus[actuator.id] ?? actuator.isOn,
+        onToggle: (value) => _toggleActuator(actuator.id, value),
+        mode: (ctrl.actuatorMode[actuator.id] ?? actuator.mode ?? 'manual') == 'auto'
+          ? ActuatorMode.auto
+          : ActuatorMode.manual,
+        onModeChanged: (mode) => _changeActuatorMode(actuator.id, mode),
               ),
             )).toList(),
             
@@ -393,7 +325,7 @@ class _DetailDevicePageState extends State<DetailDevicePage> with SingleTickerPr
                     const SizedBox(height: 16),
                     
                     Text(
-                      'Current Plant: ${(_mockPlantData['rule'] as Map<String, dynamic>)['plant_name']}',
+                      'Current Plant: ${ctrl.selectedPlant?.rule.plantName ?? '-'}',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
@@ -404,7 +336,7 @@ class _DetailDevicePageState extends State<DetailDevicePage> with SingleTickerPr
                     const SizedBox(height: 8),
                     
                     Text(
-                      'Soil Moisture: ${(_mockPlantData['rule'] as Map<String, dynamic>)['min_moisture']}% - ${(_mockPlantData['rule'] as Map<String, dynamic>)['max_moisture']}%',
+                      'Soil Moisture: ${ctrl.selectedPlant?.rule.minMoisture ?? '-'}% - ${ctrl.selectedPlant?.rule.maxMoisture ?? '-'}%',
                       style: TextStyle(
                         fontSize: 14,
                         color: isDarkTheme ? AppColors.darkTextSecondary : AppColors.gray,
@@ -414,7 +346,7 @@ class _DetailDevicePageState extends State<DetailDevicePage> with SingleTickerPr
                     const SizedBox(height: 4),
                     
                     Text(
-                      'Preferred Temperature: ${(_mockPlantData['rule'] as Map<String, dynamic>)['preferred_temp']}°C',
+                      'Preferred Temperature: ${ctrl.selectedPlant?.rule.preferredTemp ?? '-'}°C',
                       style: TextStyle(
                         fontSize: 14,
                         color: isDarkTheme ? AppColors.darkTextSecondary : AppColors.gray,
@@ -424,7 +356,7 @@ class _DetailDevicePageState extends State<DetailDevicePage> with SingleTickerPr
                     const SizedBox(height: 4),
                     
                     Text(
-                      'Preferred Humidity: ${(_mockPlantData['rule'] as Map<String, dynamic>)['preferred_humidity']}%',
+                      'Preferred Humidity: ${ctrl.selectedPlant?.rule.preferredHumidity ?? '-'}%',
                       style: TextStyle(
                         fontSize: 14,
                         color: isDarkTheme ? AppColors.darkTextSecondary : AppColors.gray,
