@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:smart_irrigation_app/core/config/theme/app_colors.dart';
 import 'package:smart_irrigation_app/core/utils/page_status.dart';
+import 'package:smart_irrigation_app/features/auth/domain/usecases/signin_usecase.dart';
 import 'package:smart_irrigation_app/routes.dart';
 import 'package:smart_irrigation_app/service_locator.dart';
 
@@ -8,12 +10,12 @@ class SignInController extends GetxController {
   var status = PageStatus.initial.obs;
   var errorMessage = ''.obs;
 
-  TextEditingController emailController = TextEditingController();
+  TextEditingController usernameController = TextEditingController();
   TextEditingController passwordController = TextEditingController();
 
   void login() async {
-    if (emailController.text.isEmpty || passwordController.text.isEmpty) {
-      errorMessage.value = 'Email dan password tidak boleh kosong';
+    if (usernameController.text.isEmpty || passwordController.text.isEmpty) {
+      errorMessage.value = 'Username and password cannot be empty.';
       Get.snackbar('Error', errorMessage.value, snackPosition: SnackPosition.BOTTOM,
           backgroundColor: Colors.redAccent, colorText: Colors.white);
       return;
@@ -22,33 +24,41 @@ class SignInController extends GetxController {
     status.value = PageStatus.loading;
     errorMessage.value = '';
 
-    // var signinResult = await sl<SigninUseCase>().call(
-    //     param: SigninReqParams(
-    //         emailOrPhone: emailController.text,
-    //         password: passwordController.text));
+    try {
+      var signinResult = await sl<SigninUseCase>().call(
+        username: usernameController.text,
+        password: passwordController.text,
+      );
 
-    // signinResult.fold((error) {
-    //   status.value = PageStatus.error;
-    //   errorMessage.value = 'Login gagal. Periksa kembali email dan password.';
-    //   Get.snackbar('Login Gagal', errorMessage.value,
-    //       backgroundColor: Colors.redAccent, colorText: Colors.white);
-    // }, (data) {
-    //   status.value = PageStatus.success;
-    //   final localStorage = sl<LocalStorageService>();
-    //   var role = localStorage.getRole() ?? 'user';
-    //   if (role == 'physician') {
-    //     Get.offAllNamed(AppRoutesDoctor.root);
-    //   } else if (role == 'user') {
-    //   }
-    // });
-    Get.offAllNamed(AppRoutes.home);
+      signinResult.fold(
+        (error) {
+          status.value = PageStatus.error;
+          errorMessage.value =
+              'Login Failed check your username and password';
+          Get.snackbar(
+            'Login Failed',
+            errorMessage.value,
+            backgroundColor: AppColors.danger,
+            colorText: AppColors.white,
+          );
+        },
+        (data) {
+          status.value = PageStatus.success;
+          Get.offAllNamed(AppRoutes.home);
+        },
+      );
+    } catch (e) {
+      errorMessage.value = "Login failed: ${e.toString()}";
+    } finally {
+      status.value = PageStatus.initial;
+    }
   }
 
   void goToSignUp() {}
 
   @override
   void onClose() {
-    emailController.dispose();
+    usernameController.dispose();
     passwordController.dispose();
     super.onClose();
   }

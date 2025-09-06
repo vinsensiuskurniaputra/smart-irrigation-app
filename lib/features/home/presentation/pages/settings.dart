@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:smart_irrigation_app/core/config/theme/app_colors.dart';
 import 'package:smart_irrigation_app/features/home/presentation/controllers/settings_controller.dart';
-import 'package:smart_irrigation_app/routes.dart';
+// import 'package:smart_irrigation_app/routes.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});

@@ -1,9 +1,10 @@
 class ApiUrls {
-  static const String baseUrl = String.fromEnvironment('BASE_URL', defaultValue: 'https://platform.staging.tekna.id/api/v2');
-  static const String websocketUrl = String.fromEnvironment('WEBSOCKET_URL', defaultValue: 'wss://websocket-chart.staging.tekna.id/ws');
-  // static const baseUrl = 'https://platform.staging.tekna.id/api/v2';
+  static const String baseUrl = String.fromEnvironment('BASE_URL', defaultValue: 'http://192.168.1.8:8080/api/v1');
+  static const String websocketUrl = String.fromEnvironment('WEBSOCKET_URL', defaultValue: 'wss://192.168.1.8/ws');
+  // static const baseUrl = 'https://192.168.1.8/api/v2';
 
-  static const login = '$baseUrl/auth/login';
+  static const login = '$baseUrl/login';
+  static const register = '$baseUrl/register';
   static const device = '$baseUrl/devices';
   static const brandList = '$baseUrl/brands';
   static const deviceList = '$baseUrl/brands';

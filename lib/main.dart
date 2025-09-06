@@ -50,19 +50,19 @@ Future<void> _initializeApp() async {
 Future<String> _determineInitialRoute() async {
   String initialRoute = AppRoutes.onboarding;
   
-  // try {
-  //   final prefs = await SharedPreferences.getInstance();
-  //   final token = prefs.getString('token');
-  //   final isFinishedOnboarding = prefs.getBool('finished_onboarding') ?? false;
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    final isFinishedOnboarding = prefs.getBool('finished_onboarding') ?? false;
     
-  //   if (token != null && token.isNotEmpty) {
-  //     initialRoute = AppRoutes.home;
-  //   } else if (isFinishedOnboarding) {
-  //     initialRoute = AppRoutes.login;
-  //   }
-  // } catch (e) {
-  //   debugPrint('Token check error: $e');
-  // }
+    if (token != null && token.isNotEmpty) {
+      initialRoute = AppRoutes.home;
+    } else if (isFinishedOnboarding) {
+      initialRoute = AppRoutes.welcome;
+    }
+  } catch (e) {
+    debugPrint('Token check error: $e');
+  }
   
   return initialRoute;
 }

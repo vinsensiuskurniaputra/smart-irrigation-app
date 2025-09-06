@@ -34,11 +34,11 @@ class SignUpPage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Buat Akun',
+                  'Create Account',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
                 ),
                 Text(
-                  'Masuk data dengan benar',
+                  'Please enter your details correctly',
                   style: TextStyle(
                       fontWeight: FontWeight.w400,
                       fontSize: 13,
@@ -46,21 +46,21 @@ class SignUpPage extends StatelessWidget {
                 ),
                 SizedBox(height: 27),
                 BasicAppTextField(
-                  hintText: 'Nama',
-                  prefixIcon: Icons.person,
+                  hintText: 'Name',
+                  prefixIcon: Icons.abc,
                   controller: controller.name,
+                ),
+                SizedBox(height: 32),
+                BasicAppTextField(
+                  hintText: 'Username',
+                  prefixIcon: Icons.person,
+                  controller: controller.username,
                 ),
                 SizedBox(height: 32),
                 BasicAppTextField(
                   hintText: 'Email',
                   prefixIcon: Icons.email,
                   controller: controller.email,
-                ),
-                SizedBox(height: 32),
-                BasicAppTextField(
-                  hintText: 'Nomor Hp',
-                  prefixIcon: Icons.phone,
-                  controller: controller.phoneNumber,
                 ),
                 SizedBox(height: 32),
                 BasicAppTextField(
@@ -81,14 +81,14 @@ class SignUpPage extends StatelessWidget {
                   () => BasicAppButton(
                       isLoading: controller.status == PageStatus.loading,
                       onPressed: () => controller.register(),
-                      title: 'Buat Akun'),
+                      title: 'Create Account'),
                 ),
                 SizedBox(height: 20),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      'Sudah punya akun?',
+                      'Already have an account?',
                       style:
                           TextStyle(fontWeight: FontWeight.w400, fontSize: 14),
                     ),

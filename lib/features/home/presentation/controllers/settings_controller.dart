@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smart_irrigation_app/core/config/theme/app_colors.dart';
 import 'package:smart_irrigation_app/routes.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:smart_irrigation_app/service_locator.dart';
+// import 'package:smart_irrigation_app/service_locator.dart';
 
 class SettingsController extends GetxController {
   // Your controller code here
@@ -178,7 +178,7 @@ class SettingsController extends GetxController {
       Get.back();
 
       // Navigate to login page
-      Get.offAllNamed(AppRoutes.login);
+      Get.offAllNamed(AppRoutes.welcome);
 
       Get.snackbar(
         'Success',

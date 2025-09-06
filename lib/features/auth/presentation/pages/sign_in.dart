@@ -33,11 +33,11 @@ class SignInPage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Silahkan Masuk',
+                  'Welcome Back',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
                 ),
                 Text(
-                  'Masuk dengan akun yang sudah terdaftar',
+                  'Please login with your registered account',
                   style: TextStyle(
                       fontWeight: FontWeight.w400,
                       fontSize: 13,
@@ -45,9 +45,9 @@ class SignInPage extends StatelessWidget {
                 ),
                 SizedBox(height: 27),
                 BasicAppTextField(
-                  hintText: 'Email / No HP',
-                  prefixIcon: Icons.email,
-                  controller: controller.emailController,
+                  hintText: 'Username',
+                  prefixIcon: Icons.person,
+                  controller: controller.usernameController,
                 ),
                 SizedBox(height: 32),
                 BasicAppTextField(
@@ -60,13 +60,13 @@ class SignInPage extends StatelessWidget {
                 Obx(() => BasicAppButton(
                     isLoading: controller.status == PageStatus.loading,
                     onPressed: () => controller.login(),
-                    title: 'Masuk')),
+                    title: 'Login')),
                 SizedBox(height: 20),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      'Belum punya akun?',
+                      'Don\'t have an account?',
                       style: TextStyle(fontWeight: FontWeight.w400, fontSize: 14),
                     ),
                     TextButton(
