@@ -14,7 +14,7 @@
     <uses-feature android:name="android.hardware.camera.autofocus" />
     
     <application
-        android:label="smart_irrigation_app"
+        android:label="AgriSense AI"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
