@@ -8,6 +8,7 @@ import 'package:smart_irrigation_app/features/device/presentation/widget/plant_i
 import 'package:smart_irrigation_app/features/device/presentation/widget/sensor_card.dart';
 import 'package:smart_irrigation_app/features/device/presentation/controller/device_controller.dart';
 import 'package:smart_irrigation_app/features/device/domain/entities/detail_device_entity.dart';
+import 'package:smart_irrigation_app/routes.dart';
 
 class DetailDevicePage extends StatelessWidget {
   final int deviceId;
@@ -344,6 +345,37 @@ class DetailDevicePage extends StatelessWidget {
                 },
                 onPredictPlant: () => _onPredictPlant(ctrl, Get.context!),
               ),
+            
+            // Chat button
+            const SizedBox(height: 24),
+            Container(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Get.toNamed(AppRoutes.chatPlant);
+                },
+                icon: const Icon(
+                  Icons.chat_bubble_outline,
+                  size: 20,
+                ),
+                label: const Text(
+                  'Chat with Plant',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(Get.context!).primaryColor,
+                  foregroundColor: AppColors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 2,
+                ),
+              ),
+            ),
           ],
         ),
       ),

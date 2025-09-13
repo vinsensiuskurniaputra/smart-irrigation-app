@@ -10,6 +10,7 @@ class AppRoutes {
 
   static const deviceDetail = '/device-detail';
   static const plantScanner = '/plant-scanner';
+  static const chatPlant = '/chat-plant';
 
   static const editProfile = '/edit-profile';
   static const changePassword = '/change-password';

@@ -15,6 +15,7 @@ import 'package:smart_irrigation_app/features/home/domain/usecases/get_device_li
 import 'package:smart_irrigation_app/features/device/data/services/device_api_service.dart';
 import 'package:smart_irrigation_app/features/device/data/services/device_websocket_service.dart';
 import 'package:smart_irrigation_app/features/device/data/services/plant_prediction_api_service.dart';
+import 'package:smart_irrigation_app/features/device/data/services/chat_api_service.dart';
 import 'package:smart_irrigation_app/features/device/data/repositories/device_impl.dart';
 import 'package:smart_irrigation_app/features/device/data/repositories/plant_prediction_impl.dart';
 import 'package:smart_irrigation_app/features/device/domain/repositories/device.dart';
@@ -37,6 +38,7 @@ void setupServiceLocator(SharedPreferences prefs) {
   sl.registerSingleton<DeviceApiService>(DeviceApiServiceImpl(sl<DioClient>()));
   sl.registerSingleton<DeviceWebSocketService>(DeviceWebSocketServiceImpl(sl<LocalStorageService>()));
   sl.registerSingleton<PlantPredictionApiService>(PlantPredictionApiServiceImpl(sl<DioClient>()));
+  sl.registerSingleton<ChatApiService>(ChatApiServiceImpl(sl<DioClient>()));
 
   // Repostory
   sl.registerSingleton<AuthRepository>(AuthRepositoryImpl());
